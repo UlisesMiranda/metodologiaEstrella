@@ -121,26 +121,33 @@ def incializarSemilla(df_pos: pd.DataFrame, indice: int) -> list:
 def algoritmoSTAR(df: pd.DataFrame, targetColumn):
     columns = df.columns
     df = df.sort_values(by=columns[targetColumn], ascending=False)
-    print(df)
     
     # Dividimos df en positivos y negativos
     targetClass = df[df.columns[-1]][0]
     print("Clase a aprender: ", targetClass)
+    
+    df = mezclar(df)
     
     df_pos = df[df[df.columns[-1]] == targetClass]
     df_neg = df[df[df.columns[-1]] != targetClass]
     
     elseClass = df_neg.iloc[0, -1]
     
-    print("\nEjemplos positivos: \n", df_pos)
-    print("\nEjemplos negativos: \n", df_neg)
+    df_pos_aprender = df_pos.iloc[: df_pos.shape[0] // 2, :]
+    df_pos_test = df_pos.iloc[df_pos.shape[0] // 2 :, :]
     
-    df_pos = mezclar(df_pos)
-    print("Ejemplos positivos mezclados: \n", df_pos)
+    df_neg_aprender = df_neg.iloc[: df_neg.shape[0] // 2, :]
+    df_neg_test = df_neg.iloc[df_neg.shape[0] // 2 :, :]
+    
+    print("\nEjemplos positivos: \n", df_pos_aprender)
+    print("\nEjemplos negativos: \n", df_neg_aprender)
+    
+    df_pos_aprender = mezclar(df_pos_aprender)
+    print("\nEjemplos positivos mezclados: \n", df_pos_aprender)
     
     complejoResultante = []
-    for i in range(df_pos.shape[0]):
-        complejoResultante.append(aprendizaje(df_pos, df_neg, i))
+    for i in range(df_pos_aprender.shape[0]):
+        complejoResultante.append(aprendizaje(df_pos_aprender, df_neg_aprender, i))
         
     resultadosFinales = list(set(tuple(array) for array in complejoResultante))
         
@@ -148,12 +155,13 @@ def algoritmoSTAR(df: pd.DataFrame, targetColumn):
     
     print("\nHipotesis aprendida: ", resultado)
     
+    df_test_unido = pd.concat([df_pos_test, df_neg_test])
     df_nuevo = []
     
-    for ejemplo in df.iloc[:, :].values:
+    for ejemplo in df_test_unido.iloc[:, :].values:
         ejemploAuxiliar = []
         for i, val in enumerate(ejemplo):
-            val = f'{df.columns[i]}={val}'
+            val = f'{df_test_unido.columns[i]}={val}'
             ejemploAuxiliar.append(val)
         df_nuevo.append(ejemploAuxiliar)
     
@@ -167,7 +175,7 @@ def algoritmoSTAR(df: pd.DataFrame, targetColumn):
             if i == len(resultadosFinales) - 1:
                 y_pred.append(elseClass)
 
-    y_true = list(df.iloc[:, -1])
+    y_true = list(df_test_unido.iloc[:, -1])
    
     matrizConfusion = confusion_matrix(y_true, y_pred)
     print(f'\nMatriz de Confusión:\n{matrizConfusion}')
