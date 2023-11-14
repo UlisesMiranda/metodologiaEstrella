@@ -4,6 +4,34 @@ from itertools import combinations
 import random
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
 
+def evaluar(df_evaluacion, resultadosFinales, targetClass, elseClass, y_true):
+    y_pred = []
+    
+    for fila in df_evaluacion:
+        for i, combinacion in enumerate(resultadosFinales):
+                        
+            if all(elemento in fila for elemento in combinacion):
+                y_pred.append(targetClass)
+                break
+            if i == len(resultadosFinales) - 1:
+                y_pred.append(elseClass)
+                
+            huboInterseccion = False
+            for interseccion in intersecciones:
+                interUno = interseccion[0]
+                if all(elemento in fila for elemento in interUno[:-1]):
+                    huboInterseccion = True
+            if huboInterseccion:
+                print(f"La fila {fila}, fue evaluada como intersección")
+                y_pred.append(targetClass)
+                break
+   
+    matrizConfusion = confusion_matrix(y_true, y_pred)
+    print(f'\nMatriz de Confusión:\n{matrizConfusion}')
+
+    reporteClasificacion = classification_report(y_true, y_pred)
+    print(f'Reporte de Clasificación:\n{reporteClasificacion}')
+
 def mezclar(df: pd.DataFrame):
     num_filas = len(df)
     indices_filas = list(range(num_filas))
@@ -156,32 +184,24 @@ def algoritmoSTAR(df: pd.DataFrame, targetColumn):
     print("\nHipotesis aprendida: ", resultado)
     
     df_test_unido = pd.concat([df_pos_test, df_neg_test])
-    df_nuevo = []
+    df_evaluacion = []
     
     for ejemplo in df_test_unido.iloc[:, :].values:
         ejemploAuxiliar = []
         for i, val in enumerate(ejemplo):
             val = f'{df_test_unido.columns[i]}={val}'
             ejemploAuxiliar.append(val)
-        df_nuevo.append(ejemploAuxiliar)
+        df_evaluacion.append(ejemploAuxiliar)
     
-    y_pred = []
-    
-    for fila in df_nuevo:
-        for i, combinacion in enumerate(resultadosFinales):
-            if all(elemento in fila for elemento in combinacion):
-                y_pred.append(targetClass)
-                break
-            if i == len(resultadosFinales) - 1:
-                y_pred.append(elseClass)
-
     y_true = list(df_test_unido.iloc[:, -1])
-   
-    matrizConfusion = confusion_matrix(y_true, y_pred)
-    print(f'\nMatriz de Confusión:\n{matrizConfusion}')
-
-    reporteClasificacion = classification_report(y_true, y_pred)
-    print(f'Reporte de Clasificación:\n{reporteClasificacion}')
+    
+    evaluar(df_evaluacion, resultadosFinales, targetClass, elseClass, y_true)
+    
+    if intersecciones[0][0][-1] == 'Auto-pilot=YES':
+        cad = 'YES'
+    else:
+        cad = 'NO'
+    evaluar([intersecciones[0][0]], resultadosFinales, targetClass, elseClass, [cad])
     
     
 df = pd.read_csv('nuevo_dataset.csv', header=0)
@@ -198,11 +218,22 @@ grupos_duplicados = duplicados.groupby(list(columnas_comparar))
 
 intersecciones = []
 for grupo, indices in grupos_duplicados.groups.items():
-    filas = df.loc[indices]
+    filasDuplicadas = df.loc[indices]
     # print(f"\nGrupo de duplicados con valores distintos en el último atributo para {grupo}:\n{filas}")
     
-    if filas.values[0][-1] != filas.values[1][-1]:
-        intersecciones.append(filas.values)
+    if filasDuplicadas.values[0][-1] != filasDuplicadas.values[1][-1]:
+        
+        filasDup = list(filasDuplicadas.values)
+        grupoFilasDup = []
+        for fila in filasDup:
+            
+            ejemploAuxiliar = [] 
+            for i, val in enumerate(fila):
+                val = f'{filasDuplicadas.columns[i]}={val}'
+                ejemploAuxiliar.append(val)
+            grupoFilasDup.append(ejemploAuxiliar)
+        intersecciones.append(grupoFilasDup)
+        
         # print("interseccion")
 
 print()
