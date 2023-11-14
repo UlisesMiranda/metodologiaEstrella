@@ -1,84 +1,24 @@
 import numpy
 import pandas as pd
 from itertools import combinations
+import random
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
 
+def mezclar(df: pd.DataFrame):
+    num_filas = len(df)
+    indices_filas = list(range(num_filas))
 
-df = pd.read_csv('nuevo_dataset.csv', header=0)
+    # Baraja aleatoriamente los índices de filas
+    random.shuffle(indices_filas)
 
-columnas = list(df.columns)
-columna_target = columnas[6]
-
-# Selecciona las columnas hasta el penúltimo atributo
-columnas_comparar = df.columns[:-1]
-print(columnas_comparar)
-
-
-# df = df.sample(frac=1).reset_index(drop=True)
-
-# Encuentra las filas duplicadas
-duplicados = df[df.duplicated(subset=columnas_comparar, keep=False)]
-print(duplicados)
-
-# # Agrupa las filas duplicadas por sus valores
-# grupos_duplicados = duplicados.groupby(list(duplicados.columns))
-
-# # Imprime las filas duplicadas y sus duplicados correspondientes
-# for grupo, indices in grupos_duplicados.groups.items():
-#     filas = df.loc[indices]
-#     print(f"\nGrupo de duplicados para {grupo}:\n{filas}")
-    
-# Filtra las filas duplicadas con valores distintos en el último atributo
-duplicados_distintos_ultimo = duplicados[duplicados.duplicated(subset=columnas_comparar, keep=False) | duplicados.duplicated(subset=[df.columns[-1]], keep=False)]
-
-# Agrupa las filas duplicadas por sus valores hasta el penúltimo atributo
-grupos_duplicados = duplicados_distintos_ultimo.groupby(list(columnas_comparar))
-
-
-intersecciones = []
-# Imprime las filas duplicadas con valores distintos en el último atributo
-for grupo, indices in grupos_duplicados.groups.items():
-    filas = df.loc[indices]
-    print(f"\nGrupo de duplicados con valores distintos en el último atributo para {grupo}:\n{filas}")
-    
-    if filas.values[0][-1] != filas.values[1][-1]:
-        intersecciones.append(filas.values)
-        print("interseccion")
-
-print(intersecciones)
-
-    
-# # choose positive kernel
-# kernel_pos = df.index[0]
-# target_class = df[df.columns[-1]][kernel_pos]
-
-#  # df with target class the same as positive kernel
-# df_pos = df[df[df.columns[-1]] == target_class]
-# # df with target class different from positive kernel
-# df_neg = df[df[df.columns[-1]] != target_class]
-
-# print(df_pos)
-# print(df_neg)
+    # Crea un nuevo DataFrame barajado
+    return df.iloc[indices_filas].reset_index(drop=True)
 
 def aprendizaje(df_pos: pd.DataFrame, df_neg: pd.DataFrame, indice: int):
     semilla = incializarSemilla(df_pos, indice)
-    # semilla = ['head', 'strong', 'yes']
-    
-    # print(f"Semilla:\n({','.join(semilla[:-1])}) -> [{semilla[-1]}]")
-    print("Semilla", semilla)
-    
-    # semillaCaracteristicas = []
-    # for i, element in enumerate(semilla):
-    #     semillaCaracteristicas.append([columns[i], element])
-        
-    # print(semillaCaracteristicas)
-    
+   
     # Obtén todas las combinaciones posibles
-    combinaciones_posibles = obtener_combinaciones(semilla)
-    
-    # # Imprime las combinaciones guardadas
-    # for combinacion in combinaciones_posibles:
-    #     print(f'[{combinacion}]')
+    combinaciones_posibles = obtenerCombinaciones(semilla)
 
     # Imprime las combinaciones posibles
     # for combinacion in combinaciones_posibles:
@@ -87,7 +27,6 @@ def aprendizaje(df_pos: pd.DataFrame, df_neg: pd.DataFrame, indice: int):
     # print(len(combinaciones_posibles))
     
     ejemplosNegativos = []
-    
     for ejemplo in df_neg.iloc[:, :].values:
         ejemploAuxiliar = []
         for i, val in enumerate(ejemplo):
@@ -99,7 +38,6 @@ def aprendizaje(df_pos: pd.DataFrame, df_neg: pd.DataFrame, indice: int):
     #     print(ejemplo)
     
     ejemplosPositivos = []
-    
     for ejemplo in df_pos.iloc[:, :].values:
         ejemploAuxiliar = []
         for i, val in enumerate(ejemplo):
@@ -110,7 +48,6 @@ def aprendizaje(df_pos: pd.DataFrame, df_neg: pd.DataFrame, indice: int):
     # for ejemplo in ejemplosPositivos:
     #     print(ejemplo)
     
-    # print(all(elemento in semilla for elemento in combinacion))
     expresionesConsistentes = []
     for combinacion in combinaciones_posibles:
         for i, ejemplo in enumerate(ejemplosNegativos):
@@ -148,7 +85,6 @@ def aprendizaje(df_pos: pd.DataFrame, df_neg: pd.DataFrame, indice: int):
     #     print(e)
         
     if expresionesConCobertura:
-    # Obtén el array que cumple con las condiciones
         result = min(expresionesConCobertura, key=lambda x: (len(x[0][0]), -x[1]))
         # print("Array que cumple con las condiciones:", result)
     else:
@@ -157,7 +93,7 @@ def aprendizaje(df_pos: pd.DataFrame, df_neg: pd.DataFrame, indice: int):
     return result[0]
     
 
-def obtener_combinaciones(entrada, index=0, combinacion_actual=[]):
+def obtenerCombinaciones(entrada, index=0, combinacion_actual=[]):
     combinaciones = []
 
     if index == len(entrada):
@@ -166,10 +102,10 @@ def obtener_combinaciones(entrada, index=0, combinacion_actual=[]):
         return combinaciones
 
     # Incluye el elemento actual en la combinación
-    combinaciones.extend(obtener_combinaciones(entrada, index + 1, combinacion_actual + [entrada[index]]))
+    combinaciones.extend(obtenerCombinaciones(entrada, index + 1, combinacion_actual + [entrada[index]]))
 
     # Excluye el elemento actual de la combinación
-    combinaciones.extend(obtener_combinaciones(entrada, index + 1, combinacion_actual))
+    combinaciones.extend(obtenerCombinaciones(entrada, index + 1, combinacion_actual))
 
     return combinaciones
 
@@ -189,15 +125,18 @@ def algoritmoSTAR(df: pd.DataFrame, targetColumn):
     
     # Dividimos df en positivos y negativos
     targetClass = df[df.columns[-1]][0]
-    print(targetClass)
+    print("Clase a aprender: ", targetClass)
     
     df_pos = df[df[df.columns[-1]] == targetClass]
     df_neg = df[df[df.columns[-1]] != targetClass]
-    print(df_pos)
-    print(df_neg)
     
-    df_pos = df_pos.sample(frac=1)
-    print(df_pos)
+    elseClass = df_neg.iloc[0, -1]
+    
+    print("\nEjemplos positivos: \n", df_pos)
+    print("\nEjemplos negativos: \n", df_neg)
+    
+    df_pos = mezclar(df_pos)
+    print("Ejemplos positivos mezclados: \n", df_pos)
     
     complejoResultante = []
     for i in range(df_pos.shape[0]):
@@ -207,7 +146,7 @@ def algoritmoSTAR(df: pd.DataFrame, targetColumn):
         
     resultado = f'{' V '.join(str(regla) for regla in resultadosFinales)} -> {targetClass}'
     
-    print(resultado)
+    print("\nHipotesis aprendida: ", resultado)
     
     df_nuevo = []
     
@@ -226,22 +165,44 @@ def algoritmoSTAR(df: pd.DataFrame, targetColumn):
                 y_pred.append(targetClass)
                 break
             if i == len(resultadosFinales) - 1:
-                y_pred.append("NO")
+                y_pred.append(elseClass)
 
-    print(len(y_pred))
-    print(len(df_nuevo))
-    
-    print(y_pred)
     y_true = list(df.iloc[:, -1])
-    print(y_true)
    
-    # Matriz de confusión
-    confusion_mat = confusion_matrix(y_true, y_pred)
-    print(f'Matriz de Confusión:\n{confusion_mat}')
+    matrizConfusion = confusion_matrix(y_true, y_pred)
+    print(f'\nMatriz de Confusión:\n{matrizConfusion}')
 
-    # Reporte de clasificación
-    classification_rep = classification_report(y_true, y_pred)
-    print(f'Reporte de Clasificación:\n{classification_rep}')
+    reporteClasificacion = classification_report(y_true, y_pred)
+    print(f'Reporte de Clasificación:\n{reporteClasificacion}')
+    
+    
+df = pd.read_csv('nuevo_dataset.csv', header=0)
+print("Dataset original: \n", df)
+
+columnas = list(df.columns)
+columna_target = columnas[6]
+columnas_comparar = df.columns[:-1]
+
+duplicados = df[df.duplicated(subset=columnas_comparar, keep=False)]
+
+# Agrupa las filas duplicadas por sus valores hasta el penúltimo atributo
+grupos_duplicados = duplicados.groupby(list(columnas_comparar))
+
+intersecciones = []
+for grupo, indices in grupos_duplicados.groups.items():
+    filas = df.loc[indices]
+    # print(f"\nGrupo de duplicados con valores distintos en el último atributo para {grupo}:\n{filas}")
+    
+    if filas.values[0][-1] != filas.values[1][-1]:
+        intersecciones.append(filas.values)
+        # print("interseccion")
+
+print()
+for interseccion in intersecciones:
+    print("Interseccion en: \n", interseccion)
+
+df = df.drop_duplicates(subset=columnas_comparar, keep=False)
+print("\nEliminando duplicados, queda: \n", df)
     
 algoritmoSTAR(df, -1)
     
